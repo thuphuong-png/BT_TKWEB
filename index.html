@@ -47,96 +47,97 @@
     </div>
 
     <script>
+      
+        const studentManager = {
+            MAX_COURSE: 28,
+            FACULTY_MAP: {
+                "A401": "Ngân hàng, Tài chính",
+                "A404": "Công nghệ thông tin & Kinh tế số",
+                "A402": "Kế toán - Kiểm toán",
+                "A407": "Kinh tế đầu tư",
+                "A405": "Quản trị kinh doanh; Kinh doanh quốc tế",
+                "A406": "Luật kinh tế",
+                "A403": "QTDL",
+                "A751": "Ngôn ngữ"
+            },
+
+            // xóa dấu tiếng Việt
+            normalizeText(str) {
+                return str.normalize('NFD')
+                        .replace(/[\u0300-\u036f]/g, '')
+                        .replace(/đ/g, 'd').replace(/Đ/g, 'D')
+                        .trim().replace(/\s+/g, ' ');
+            },
+
+            // kiểm tra hợp lệ của MSSV
+            validateId(studentId) {
+                const idRegex = /^[A-Z0-9]{10}$/; // Đúng 10 ký tự chữ/số
+                if (!idRegex.test(studentId)) return "Mã sinh viên phải đúng 10 ký tự và không có ký tự đặc biệt!";
+
+                const course = parseInt(studentId.substring(0, 2));
+                if (isNaN(course) || course < 1 || course > this.MAX_COURSE) {
+                    return `Khóa sinh viên (2 số đầu) phải từ 01 đến ${this.MAX_COURSE}!`;
+                }
+
+                const lastFour = studentId.slice(-4);
+                if (!/^\d{4}$/.test(lastFour)) return "4 ký tự cuối của MSSV phải là chữ số!";
+
+                return null; // Không có lỗi
+            },
+
+            // Hàm tạo Email
+            generateEmail(fullNameNoTones, studentId) {
+                const nameParts = fullNameNoTones.split(" ");
+                const firstName = nameParts[nameParts.length - 1].toLowerCase();
+                let initials = "";
+                for (let i = 0; i < nameParts.length - 1; i++) {
+                    initials += nameParts[i][0].toLowerCase();
+                }
+                return `${firstName}${initials}.${studentId.toLowerCase()}@hvnh.edu.vn`;
+            },
+
+            sumLastFour(studentId) {
+                return studentId.slice(-4).split('').reduce((a, b) => a + parseInt(b), 0);
+            }
+        };
+
         function processInfo() {
-    // 1. Lấy dữ liệu và xử lý khoảng trắng thừa (Trim + Remove Double Spaces)
-    let fullNameRaw = document.getElementById('fullName').value.trim().replace(/\s+/g, ' ');
-    let studentId = document.getElementById('studentId').value.trim().toUpperCase(); // Tự động viết hoa MSSV
-    const resultDiv = document.getElementById('result');
 
-    resultDiv.style.display = 'none';
+            const fullNameRaw = document.getElementById('fullName').value;
+            const studentId = document.getElementById('studentId').value.trim().toUpperCase();
+            const resultDiv = document.getElementById('result');
+            resultDiv.style.display = 'none';
 
-    // 2. Kiểm tra bỏ trống
-    if (!fullNameRaw || !studentId) {
-        alert("Vui lòng nhập đầy đủ họ tên và MSSV!");
-        return;
-    }
+            if (!fullNameRaw || !studentId) {
+                alert("Vui lòng nhập đầy đủ thông tin!");
+                return;
+            }
 
-    // 3. Hàm chuyển tiếng Việt có dấu thành không dấu (Normalize)
-    const removeVietnameseTones = (str) => {
-        return str.normalize('NFD')
-                  .replace(/[\u0300-\u036f]/g, '')
-                  .replace(/đ/g, 'd').replace(/Đ/g, 'D');
-    };
+            const fullNameNoTones = studentManager.normalizeText(fullNameRaw);
+            if (fullNameNoTones.split(" ").length < 2) {
+                alert("Vui lòng nhập đầy đủ cả Họ và Tên!");
+                return;
+            }
 
-    const fullNameNoTones = removeVietnameseTones(fullNameRaw);
-    const nameParts = fullNameNoTones.split(" ");
+            const error = studentManager.validateId(studentId);
+            if (error) {
+                alert(error);
+                return;
+            }
 
-    // Kiểm tra nếu tên chỉ có 1 từ (Thiếu họ hoặc tên)
-    if (nameParts.length < 2) {
-        alert("Vui lòng nhập đầy đủ cả Họ và Tên!");
-        return;
-    }
+            const email = studentManager.generateEmail(fullNameNoTones, studentId);
+            const faculty = studentManager.FACULTY_MAP[studentId.substring(2, 6)] || "Hệ đào tạo khác";
+            const sum = studentManager.sumLastFour(studentId);
+            const course = studentId.substring(0, 2);
 
-    // 4. Kiểm tra định dạng MSSV (10 ký tự, không ký tự đặc biệt)
-    const idRegex = /^[A-Z0-9]+$/;
-    if (studentId.length !== 10 || !idRegex.test(studentId)) {
-        alert("Mã sinh viên không hợp lệ! Phải đúng 10 ký tự (chữ và số).");
-        return;
-    }
-
-    // 5. Kiểm tra Khóa (1-28)
-    const coursePeriodStr = studentId.substring(0, 2);
-    const coursePeriodNum = parseInt(coursePeriodStr);
-    if (isNaN(coursePeriodNum) || coursePeriodNum < 1 || coursePeriodNum > 28) {
-        alert("Hệ thống hiện tại chỉ hỗ trợ từ Khóa 01 đến Khóa 28.");
-        return;
-    }
-
-    // 6. Xử lý tạo Email (Sử dụng tên đã bỏ dấu)
-    const firstName = nameParts[nameParts.length - 1].toLowerCase(); 
-    let initials = ""; 
-    for (let i = 0; i < nameParts.length - 1; i++) {
-        initials += nameParts[i][0].toLowerCase();
-    }
-    const email = `${firstName}${initials}.${studentId.toLowerCase()}@hvnh.edu.vn`;
-
-    // 7. Xác định Khoa
-    const facultyCode = studentId.substring(2, 6); 
-    const facultyMap = {
-        "A401": "Ngân hàng, Tài chính",
-        "A404": "Công nghệ thông tin & Kinh tế số",
-        "A402": "Kế toán - Kiểm toán",
-        "A407": "Kinh tế đầu tư",
-        "A405": "Quản trị kinh doanh; Kinh doanh quốc tế",
-        "A406": "Luật kinh tế",
-        "A403": "QTDL",
-        "A751": "Ngôn ngữ"
-    };
-
-    const faculty = facultyMap[facultyCode] || "Hệ đào tạo khác (Quốc tế/Liên thông)";
-
-    // 8. Tính tổng 4 số cuối & Kiểm tra xem 4 ký tự cuối có phải là số không
-    const lastFour = studentId.slice(-4); 
-    let sum = 0;
-    if (!/^\d{4}$/.test(lastFour)) {
-        alert("4 ký tự cuối của MSSV phải là chữ số!");
-        return;
-    }
-    
-    for (let char of lastFour) {
-        sum += parseInt(char);
-    }
-
-    // 9. Hiển thị kết quả
-    resultDiv.style.display = 'block';
-    resultDiv.innerHTML = `
-        <p><strong>Email định danh:</strong> <span class="highlight">${email}</span></p>
-        <p>Xin chào <span class="highlight">${fullNameRaw}</span> (Hệ thống ghi nhận: ${fullNameNoTones}),</p>
-        <p>Bạn thuộc <span class="highlight">Khóa ${coursePeriodStr}</span>, 
-            <span class="highlight">Khoa ${faculty}</span>.</p>
-        <p>Tổng 4 số cuối MSSV của bạn là: <span class="highlight">${sum}</span></p>
-    `;
-}
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = `
+                <p><strong>Email:</strong> <span class="highlight">${email}</span></p>
+                <p>Xin chào <span class="highlight">${fullNameRaw}</span>,</p>
+                <p>Bạn là sinh viên khóa <span class="highlight">${course}</span>, khoa <span class="highlight">${faculty}</span>.</p>
+                <p>Tổng 4 số cuối MSSV: <span class="highlight">${sum}</span></p>
+            `;
+        }
     </script>
 </body>
 </html>
