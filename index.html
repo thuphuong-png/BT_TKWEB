@@ -84,11 +84,11 @@
         return;
     }
 
-    // 5. Kiểm tra Khóa (1-26)
+    // 5. Kiểm tra Khóa (1-28)
     const coursePeriodStr = studentId.substring(0, 2);
     const coursePeriodNum = parseInt(coursePeriodStr);
-    if (isNaN(coursePeriodNum) || coursePeriodNum < 1 || coursePeriodNum > 26) {
-        alert("Hệ thống hiện tại chỉ hỗ trợ từ Khóa 01 đến Khóa 26.");
+    if (isNaN(coursePeriodNum) || coursePeriodNum < 1 || coursePeriodNum > 28) {
+        alert("Hệ thống hiện tại chỉ hỗ trợ từ Khóa 01 đến Khóa 28.");
         return;
     }
 
