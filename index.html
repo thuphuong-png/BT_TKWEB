@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản lý danh sách sinh viên HVNH</title>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <style>
+        :root { --ba-red: #c0392b; --ba-blue: #2980b9; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; padding: 20px; }
+        .container { max-width: 1000px; margin: auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+        h2 { color: var(--ba-red); text-align: center; border-bottom: 2px solid var(--ba-red); padding-bottom: 10px; }
+        .upload-section { margin-bottom: 20px; text-align: center; padding: 20px; border: 2px dashed #ccc; border-radius: 8px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 0.9rem; }
+        th { background-color: var(--ba-blue); color: white; padding: 12px; }
+        td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+        .highlight-email { color: var(--ba-red); font-weight: 600; font-family: monospace; }
+        .faculty-tag { background: #e8f4fd; color: #2b6cb0; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>DANH SÁCH SINH VIÊN HỌC VIỆN NGÂN HÀNG</h2>
+    
+    <div class="upload-section">
+        <label for="excelFile">Chọn file Excel danh sách lớp: </label>
+        <input type="file" id="excelFile" accept=".xlsx, .xls, .csv">
+    </div>
+
+    <div id="resultArea">
+        <table id="studentTable">
+            <thead>
+                <tr>
+                    <th>STT</th>
+                    <th>MSSV</th>
+                    <th>Họ và Tên</th>
+                    <th>Khóa</th>
+                    <th>Khoa</th>
+                    <th>Email HVNH</th>
+                </tr>
+            </thead>
+            <tbody id="studentBody">
+                </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+// ====== 1. Class SinhVien (Attribute & Method) ======
+class Student {
+    constructor(id, fullName) {
+        this.id = id.trim().toUpperCase();
+        this.fullName = fullName.trim();
+        this.course = this.id.substring(0, 2);
+        this.facultyCode = this.id.substring(2, 6);
+    }
+
+    // Method lấy tên khoa theo quy tắc
+    getFacultyName() {
+        const facultyMap = {
+            "A401": "Ngân hàng, Tài chính",
+            "A404": "CNTT & Kinh tế số",
+            "A402": "Kế toán - Kiểm toán",
+            "A407": "Kinh tế đầu tư",
+            "A405": "Quản trị kinh doanh",
+            "A406": "Luật kinh tế",
+            "A751": "Ngôn ngữ Anh"
+        };
+        return facultyMap[this.facultyCode] || "Hệ đào tạo khác";
+    }
+
+    // Method chuẩn hóa tiếng Việt để làm email
+    normalizeText(str) {
+        return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D');
+    }
+
+    // Method tạo Email: binhnv.27a4041234@hvnh.edu.vn
+    generateEmail() {
+        const cleanName = this.normalizeText(this.fullName).toLowerCase().split(/\s+/);
+        const firstName = cleanName[cleanName.length - 1]; // Tên chính
+        let initials = ""; // Họ và tên đệm
+        for (let i = 0; i < cleanName.length - 1; i++) {
+            initials += cleanName[i][0];
+        }
+        return `${firstName}${initials}.${this.id.toLowerCase()}@hvnh.edu.vn`;
+    }
+}
+
+// ====== 2. Class Quản lý Danh sách ======
+class Classroom {
+    constructor() {
+        this.students = [];
+    }
+
+    addStudent(student) {
+        this.students.push(student);
+    }
+
+    clear() {
+        this.students = [];
+    }
+
+    renderTable(targetId) {
+        const tbody = document.getElementById(targetId);
+        tbody.innerHTML = "";
+        this.students.forEach((s, index) => {
+            const row = `<tr>
+                <td>${index + 1}</td>
+                <td>${s.id}</td>
+                <td>${s.fullName}</td>
+                <td>K${s.course}</td>
+                <td><span class="faculty-tag">${s.getFacultyName()}</span></td>
+                <td class="highlight-email">${s.generateEmail()}</td>
+            </tr>`;
+            tbody.insertAdjacentHTML('beforeend', row);
+        });
+    }
+}
+
+const myClass = new Classroom();
+
+// ====== 3. Xử lý đọc file Excel ======
+document.getElementById('excelFile').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    const reader = new FileReader();
+
+    reader.onload = function(event) {
+        const data = new Uint8Array(event.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        
+        // Chuyển sheet thành JSON (Giả sử cột 1 là Mã SV, cột 2 là Họ tên)
+        const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+
+        myClass.clear();
+        jsonData.forEach(row => {
+            // Lưu ý: Tên thuộc tính trong row phụ thuộc vào header của file Excel
+            // Ở đây ta lấy theo key phổ biến: "Mã SV", "Họ tên"
+            const msv = row["Mã SV"] || row["MSSV"] || Object.values(row)[1];
+            const name = row["Họ tên"] || row["Họ và tên"] || Object.values(row)[2];
+            
+            if (msv && name) {
+                const newStudent = new Student(msv.toString(), name.toString());
+                myClass.addStudent(newStudent);
+            }
+        });
+
+        myClass.renderTable('studentBody');
+    };
+
+    reader.readAsArrayBuffer(file);
+});
+</script>
+
+</body>
+</html>
